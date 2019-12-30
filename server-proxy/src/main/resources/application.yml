@@ -1,0 +1,7 @@
+server:
+  localPort: 1082
+  auth: #服务端认证用户列表，以后改为数据库中读取
+    open: true
+    users:
+      - {user: serveruser, password: serverpw}
+      - {user: serveruser1, password: serverpw1}

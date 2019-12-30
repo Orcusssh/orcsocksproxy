@@ -1,0 +1,16 @@
+client:
+  localPort: 1081
+  serverHost: 192.168.33.1
+  serverPort: 1082
+  serverUser: serveruser
+  serverPassword: serverpw
+  auth: #客户端认证用户列表，以后改为数据库中读取
+    open: true
+    users:
+      - {user: test1, password: test1pw}
+      - {user: test2, password: test2pw}
+
+#pac模式配置
+pac:
+  open: true
+  domains: www.zjtest.com,awuat.zfaex.com,wwww.baidu.com
