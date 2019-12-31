@@ -1,5 +1,7 @@
 server:
   localPort: 1082
+  cryptMethod: aes-256-cfb
+  cryptKey: worc123
   auth: #服务端认证用户列表，以后改为数据库中读取
     open: true
     users:

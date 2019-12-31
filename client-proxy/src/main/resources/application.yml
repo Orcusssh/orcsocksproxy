@@ -4,6 +4,8 @@ client:
   serverPort: 1082
   serverUser: serveruser
   serverPassword: serverpw
+  cryptMethod: aes-256-cfb
+  cryptKey: worc123
   auth: #客户端认证用户列表，以后改为数据库中读取
     open: true
     users:

@@ -2,9 +2,13 @@ package com.orc.client.handler;
 
 import com.orc.client.config.CommonConfiguration;
 import com.orc.client.config.PacConfiguration;
+import com.orc.common.auth.AuthMessagePacker;
 import com.orc.common.coder.AuthRequestMessageDecoder;
 import com.orc.common.coder.AuthRequestMessageEncoder;
 import com.orc.common.coder.AuthResponseMessageDecoder;
+import com.orc.common.encrypt.CryptFactory;
+import com.orc.common.encrypt.CryptUtils;
+import com.orc.common.encrypt.ICrypt;
 import com.orc.common.message.AuthRequestMessage;
 import com.orc.common.message.AuthResponseMessage;
 import com.orc.common.util.SocksUtils;
@@ -27,6 +31,8 @@ public class Socks5CommandRequestHandler extends SimpleChannelInboundHandler<Def
 
     private final Bootstrap b = new Bootstrap();
 
+    private ICrypt crypt;
+
     private PacConfiguration pacConfiguration;
 
     private CommonConfiguration commonConfiguration;
@@ -34,6 +40,7 @@ public class Socks5CommandRequestHandler extends SimpleChannelInboundHandler<Def
     public Socks5CommandRequestHandler(CommonConfiguration commonConfiguration , PacConfiguration pacConfiguration) {
         this.commonConfiguration = commonConfiguration;
         this.pacConfiguration = pacConfiguration;
+        this.crypt = CryptFactory.get(commonConfiguration.getCryptMethod(), commonConfiguration.getCryptKey());
     }
 
 
@@ -51,7 +58,7 @@ public class Socks5CommandRequestHandler extends SimpleChannelInboundHandler<Def
                 .handler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     protected void initChannel(SocketChannel ch) throws Exception {
-                        ch.pipeline().addLast(new AuthResponseMessageDecoder());
+                        //ch.pipeline().addLast(new AuthResponseMessageDecoder());
                         ch.pipeline().addLast(new ProxyServerAuthHandler(ctx, msg));
                     }
                 });
@@ -118,7 +125,7 @@ public class Socks5CommandRequestHandler extends SimpleChannelInboundHandler<Def
 
 
 
-    public final class ProxyServerAuthHandler extends SimpleChannelInboundHandler<AuthResponseMessage> {
+    public final class ProxyServerAuthHandler extends SimpleChannelInboundHandler<ByteBuf> {
 
         private final ChannelHandlerContext inCtx;
         private final DefaultSocks5CommandRequest inMsg;
@@ -140,34 +147,37 @@ public class Socks5CommandRequestHandler extends SimpleChannelInboundHandler<Def
                 authMessage.setPort(inMsg.dstPort());
                 authMessage.setUser(commonConfiguration.getServerUser());
                 authMessage.setPassword(commonConfiguration.getServerPassword());
-                ctx.pipeline().addFirst(new AuthRequestMessageEncoder());
-                ctx.writeAndFlush(authMessage);
-                ctx.pipeline().remove(AuthRequestMessageEncoder.class);
+
+                //ctx.pipeline().addFirst(new AuthRequestMessageEncoder());
+                ctx.writeAndFlush(CryptUtils.encrypt(crypt, AuthMessagePacker.pack(authMessage)));
+                //ctx.pipeline().remove(AuthRequestMessageEncoder.class);
             }else{
-                addSuccessRelayHandler(inCtx, ctx);
+                addSuccessRelayHandler(inCtx, ctx, false);
             }
         }
 
         @Override
-        protected void channelRead0(ChannelHandlerContext ctx, AuthResponseMessage authMessage) {
-            if(!authMessage.isAuthSuccess()){//认证失败，关闭通道
+        protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) {
+            msg = CryptUtils.decrypt(crypt, msg);
+            AuthResponseMessage authResponseMessage = AuthMessagePacker.unpack(msg, AuthResponseMessage.class);
+            if(!authResponseMessage.isAuthSuccess()){//auth failed, close channel
                 inCtx.close();
                 ctx.close();
                 return;
             }
             //认证通过，添加消息中继handler
-            addSuccessRelayHandler(inCtx, ctx);
+            addSuccessRelayHandler(inCtx, ctx, true);
 
         }
 
-        private void addSuccessRelayHandler(ChannelHandlerContext inCtx, ChannelHandlerContext outCtx){
-            outCtx.pipeline().remove(AuthResponseMessageDecoder.class);//移除之前的认证解码器，因为接下来非认证消息传输
-            final InRelayHandler inRelay = new InRelayHandler(inCtx.channel());
-            final OutRelayHandler outRelay = new OutRelayHandler(outCtx.channel());
+        private void addSuccessRelayHandler(ChannelHandlerContext inCtx, ChannelHandlerContext outCtx, boolean isProxy){
+            //outCtx.pipeline().remove(AuthResponseMessageDecoder.class);//移除之前的认证解码器，因为接下来非认证消息传输
+            final InRelayHandler inRelay = new InRelayHandler(inCtx.channel(), isProxy, crypt);
+            final OutRelayHandler outRelay = new OutRelayHandler(outCtx.channel(), isProxy, crypt);
             inCtx.channel().writeAndFlush(SocksUtils.getSuccessResponse()).addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture channelFuture) {
-                    outCtx.pipeline().remove(ProxyServerAuthHandler.class);//移除作为认证用的handler，接下来是消息的代理
+                    outCtx.pipeline().remove(ProxyServerAuthHandler.class);//remove auth handler
                     inCtx.pipeline().remove(Socks5CommandRequestHandler.class);
                     outCtx.pipeline().addLast(inRelay);
                     inCtx.pipeline().addLast(outRelay);
@@ -183,8 +193,14 @@ public class Socks5CommandRequestHandler extends SimpleChannelInboundHandler<Def
 
         private final Channel relayChannel;
 
-        public InRelayHandler(Channel relayChannel) {
+        private final boolean isProxy;
+
+        private final ICrypt crypt;
+
+        public InRelayHandler(Channel relayChannel, boolean isProxy, ICrypt crypt) {
             this.relayChannel = relayChannel;
+            this.isProxy = isProxy;
+            this.crypt = crypt;
         }
 
         @Override
@@ -198,6 +214,9 @@ public class Socks5CommandRequestHandler extends SimpleChannelInboundHandler<Def
                 if (relayChannel.isActive()) {
                     logger.debug("get remote message" + relayChannel);
                     ByteBuf bytebuff = (ByteBuf) msg;
+                    if(isProxy){// proxy server message, need decrypted
+                        bytebuff = CryptUtils.decrypt(crypt, bytebuff);
+                    }
                     relayChannel.writeAndFlush(bytebuff);
                 }
             } catch (Exception e) {
@@ -225,8 +244,14 @@ public class Socks5CommandRequestHandler extends SimpleChannelInboundHandler<Def
 
         private final Channel relayChannel;
 
-        public OutRelayHandler(Channel relayChannel) {
+        private final boolean isProxy;
+
+        private final ICrypt crypt;
+
+        public OutRelayHandler(Channel relayChannel, boolean isProxy, ICrypt crypt) {
             this.relayChannel = relayChannel;
+            this.isProxy = isProxy;
+            this.crypt = crypt;
         }
 
         @Override
@@ -242,7 +267,11 @@ public class Socks5CommandRequestHandler extends SimpleChannelInboundHandler<Def
                         logger.debug("send data to remoteServer ", relayChannel);
                     }
                     ByteBuf bytebuff = (ByteBuf) msg;
-                    relayChannel.writeAndFlush(bytebuff);
+                    if(isProxy){//need proxy, send encrypted message
+                        relayChannel.writeAndFlush(CryptUtils.encrypt(crypt, bytebuff));
+                    }else {
+                        relayChannel.writeAndFlush(bytebuff);
+                    }
                 }
             } catch (Exception e) {
                 logger.error("send data to remoteServer error", e);

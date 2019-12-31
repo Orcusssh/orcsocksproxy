@@ -9,6 +9,10 @@ public class CommonConfiguration {
 
     private Integer localPort;
 
+    private String  cryptMethod;
+
+    private String cryptKey;
+
     public Integer getLocalPort() {
         return localPort;
     }
@@ -17,4 +21,19 @@ public class CommonConfiguration {
         this.localPort = localPort;
     }
 
+    public String getCryptMethod() {
+        return cryptMethod;
+    }
+
+    public void setCryptMethod(String cryptMethod) {
+        this.cryptMethod = cryptMethod;
+    }
+
+    public String getCryptKey() {
+        return cryptKey;
+    }
+
+    public void setCryptKey(String cryptKey) {
+        this.cryptKey = cryptKey;
+    }
 }

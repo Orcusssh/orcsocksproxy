@@ -17,6 +17,10 @@ public class CommonConfiguration {
 
     private String serverPassword;
 
+    private String  cryptMethod;
+
+    private String cryptKey;
+
     public Integer getLocalPort() {
         return localPort;
     }
@@ -55,5 +59,21 @@ public class CommonConfiguration {
 
     public void setServerPassword(String serverPassword) {
         this.serverPassword = serverPassword;
+    }
+
+    public String getCryptMethod() {
+        return cryptMethod;
+    }
+
+    public void setCryptMethod(String cryptMethod) {
+        this.cryptMethod = cryptMethod;
+    }
+
+    public String getCryptKey() {
+        return cryptKey;
+    }
+
+    public void setCryptKey(String cryptKey) {
+        this.cryptKey = cryptKey;
     }
 }

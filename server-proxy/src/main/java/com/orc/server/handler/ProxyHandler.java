@@ -1,5 +1,7 @@
 package com.orc.server.handler;
 
+import com.orc.common.encrypt.CryptUtils;
+import com.orc.common.encrypt.ICrypt;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
@@ -19,11 +21,14 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
 
     private int port;
 
+    private ICrypt crypt;
+
     private AtomicReference<Channel> remoteChannel = new AtomicReference<>();
 
-    public ProxyHandler(String host, int port, final ChannelHandlerContext clientChannelContext, Object msg){
+    public ProxyHandler(String host, int port, ICrypt crypt, final ChannelHandlerContext clientChannelContext, Object msg){
         this.host = host;
         this.port = port;
+        this.crypt = crypt;
         init(clientChannelContext, msg);
     }
 
@@ -38,7 +43,7 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
                             @Override
                             public void channelRead(ChannelHandlerContext ctx0, Object msg) throws Exception {
                                 logger.info("返回消息");
-                                clientChannelContext.channel().writeAndFlush(msg);
+                                clientChannelContext.channel().writeAndFlush(CryptUtils.encrypt(crypt, (ByteBuf)msg));
                             }
 
                         });
@@ -66,7 +71,7 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
         //directProxy(ctx, msg);
         logger.info("收到客户端消息");
         if (remoteChannel.get() != null) {
-            remoteChannel.get().writeAndFlush(msg);
+            remoteChannel.get().writeAndFlush(CryptUtils.decrypt(crypt, (ByteBuf)msg));
         }
     }
 
