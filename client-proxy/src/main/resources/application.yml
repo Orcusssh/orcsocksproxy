@@ -7,7 +7,7 @@ client:
   cryptMethod: aes-256-cfb
   cryptKey: worc123
   auth: #客户端认证用户列表，以后改为数据库中读取
-    open: true
+    open: false
     users:
       - {user: test1, password: test1pw}
       - {user: test2, password: test2pw}
@@ -15,4 +15,4 @@ client:
 #pac模式配置
 pac:
   open: true
-  domains: www.zjtest.com,awuat.zfaex.com,wwww.baidu.com
+  domains: www.zjtest.com,awuat.zfaex.com,wwww.baidu.com,www.cnblogs.com,www.toutiao.com,www.qq.com,www.ixigua.com

@@ -4,6 +4,7 @@ import com.orc.common.encrypt.CryptUtils;
 import com.orc.common.encrypt.ICrypt;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -11,6 +12,7 @@ import io.netty.handler.codec.FixedLengthFrameDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetAddress;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class ProxyHandler extends ChannelInboundHandlerAdapter {
@@ -49,21 +51,31 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
                         });
                     }
                 });
-        ChannelFuture channelFuture = bootstrap.connect(host, port);
-        channelFuture.addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                if (future.isSuccess()) {
-                    logger.info("连接目标服务器");
-                    logger.info("connect success host = " + host + ",port = " + port);
-                    remoteChannel.set(future.channel());
-                   // future.channel().writeAndFlush(msg);
-                } else {
-                    logger.info("connect fail host = " + host + ",port = " + port);
-                    clientChannelContext.close();
+        try {
+            ChannelFuture channelFuture = bootstrap.connect(InetAddress.getByName(host), port);
+            channelFuture.addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture future) throws Exception {
+                    if (future.isSuccess()) {
+                        logger.info("连接目标服务器");
+                        logger.info("connect success host = " + host + ",port = " + port);
+                        remoteChannel.set(future.channel());
+//                        if(port == 443){
+//                            ByteBuf buffer = clientChannelContext.channel().alloc().buffer("HTTP/1.1 200 Connection Established\r\n\r\n".getBytes().length);
+//                            buffer.writeBytes("HTTP/1.1 200 Connection Established\r\n\r\n".getBytes());
+//                            clientChannelContext.channel().writeAndFlush(buffer);
+//                        }
+                        // future.channel().writeAndFlush(msg);
+                    } else {
+                        logger.info("connect fail host = " + host + ",port = " + port);
+                        clientChannelContext.close();
+                    }
                 }
-            }
-        });
+            });
+        }catch (Exception e){
+            logger.error("connect intenet error", e);
+            clientChannelContext.close();
+        }
     }
 
     @Override

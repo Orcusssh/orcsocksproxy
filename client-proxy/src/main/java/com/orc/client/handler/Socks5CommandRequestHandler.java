@@ -9,8 +9,10 @@ import com.orc.common.coder.AuthResponseMessageDecoder;
 import com.orc.common.encrypt.CryptFactory;
 import com.orc.common.encrypt.CryptUtils;
 import com.orc.common.encrypt.ICrypt;
+import com.orc.common.handler.DelimiterOutboundHandler;
 import com.orc.common.message.AuthRequestMessage;
 import com.orc.common.message.AuthResponseMessage;
+import com.orc.common.message.DelimiterMessage;
 import com.orc.common.util.SocksUtils;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
@@ -18,6 +20,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.DelimiterBasedFrameDecoder;
 import io.netty.handler.codec.socksx.v5.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -148,6 +151,8 @@ public class Socks5CommandRequestHandler extends SimpleChannelInboundHandler<Def
                 authMessage.setUser(commonConfiguration.getServerUser());
                 authMessage.setPassword(commonConfiguration.getServerPassword());
 
+               // ctx.pipeline().addLast(new DelimiterOutboundHandler());
+                ctx.pipeline().addLast(new DelimiterBasedFrameDecoder(102400, DelimiterMessage.getDelimiterBuf()));
                 //ctx.pipeline().addFirst(new AuthRequestMessageEncoder());
                 ctx.writeAndFlush(CryptUtils.encrypt(crypt, AuthMessagePacker.pack(authMessage)));
                 //ctx.pipeline().remove(AuthRequestMessageEncoder.class);
@@ -212,7 +217,7 @@ public class Socks5CommandRequestHandler extends SimpleChannelInboundHandler<Def
         public void channelRead(ChannelHandlerContext ctx, Object msg) {
             try {
                 if (relayChannel.isActive()) {
-                    logger.debug("get remote message" + relayChannel);
+                    logger.info("get remote message" + relayChannel);
                     ByteBuf bytebuff = (ByteBuf) msg;
                     if(isProxy){// proxy server message, need decrypted
                         bytebuff = CryptUtils.decrypt(crypt, bytebuff);
@@ -234,7 +239,8 @@ public class Socks5CommandRequestHandler extends SimpleChannelInboundHandler<Def
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             cause.printStackTrace();
-            ctx.close();
+            SocksUtils.closeOnFlush(relayChannel);
+            SocksUtils.closeOnFlush(ctx.channel());
         }
     }
 
@@ -264,7 +270,7 @@ public class Socks5CommandRequestHandler extends SimpleChannelInboundHandler<Def
             try {
                 if (relayChannel.isActive()) {
                     if(!relayChannel.remoteAddress().toString().contains("mozilla") && !relayChannel.remoteAddress().toString().contains("firefox")) {
-                        logger.debug("send data to remoteServer ", relayChannel);
+                        logger.info("send data to remoteServer ", relayChannel);
                     }
                     ByteBuf bytebuff = (ByteBuf) msg;
                     if(isProxy){//need proxy, send encrypted message
@@ -290,7 +296,8 @@ public class Socks5CommandRequestHandler extends SimpleChannelInboundHandler<Def
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             cause.printStackTrace();
-            ctx.close();
+            SocksUtils.closeOnFlush(relayChannel);
+            SocksUtils.closeOnFlush(ctx.channel());
         }
 
     }

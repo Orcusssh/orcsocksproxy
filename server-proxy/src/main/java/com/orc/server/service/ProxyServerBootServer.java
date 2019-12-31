@@ -1,6 +1,8 @@
 package com.orc.server.service;
 
 import com.orc.common.coder.AuthRequestMessageDecoder;
+import com.orc.common.handler.DelimiterOutboundHandler;
+import com.orc.common.message.DelimiterMessage;
 import com.orc.server.config.CommonConfiguration;
 import com.orc.server.config.ServerAuthConfiguration;
 import com.orc.server.handler.InitialServerHandler;
@@ -12,6 +14,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.codec.DelimiterBasedFrameDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +46,8 @@ public class ProxyServerBootServer implements ApplicationRunner {
                         protected void initChannel(SocketChannel ch) throws Exception {
                             ChannelPipeline cp = ch.pipeline();
                             //ch.pipeline().addLast(new AuthRequestMessageDecoder());
+                            cp.addLast(new DelimiterOutboundHandler());
+                            //cp.addLast(new DelimiterBasedFrameDecoder(102400, DelimiterMessage.getDelimiterBuf()));
                             cp.addLast(new InitialServerHandler(commonConfiguration, serverAuthConfiguration));
                         }
                     });
