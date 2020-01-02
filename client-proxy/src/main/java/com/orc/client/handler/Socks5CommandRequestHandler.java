@@ -61,7 +61,8 @@ public class Socks5CommandRequestHandler extends SimpleChannelInboundHandler<Def
                 .handler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     protected void initChannel(SocketChannel ch) throws Exception {
-                        //ch.pipeline().addLast(new AuthResponseMessageDecoder());
+                        ch.pipeline().addLast(new DelimiterOutboundHandler());
+                        ch.pipeline().addLast(new DelimiterBasedFrameDecoder(1024 * 1000 * 50, DelimiterMessage.getDelimiterBuf()));
                         ch.pipeline().addLast(new ProxyServerAuthHandler(ctx, msg));
                     }
                 });
@@ -150,13 +151,10 @@ public class Socks5CommandRequestHandler extends SimpleChannelInboundHandler<Def
                 authMessage.setPort(inMsg.dstPort());
                 authMessage.setUser(commonConfiguration.getServerUser());
                 authMessage.setPassword(commonConfiguration.getServerPassword());
-
-               // ctx.pipeline().addLast(new DelimiterOutboundHandler());
-                ctx.pipeline().addLast(new DelimiterBasedFrameDecoder(102400, DelimiterMessage.getDelimiterBuf()));
-                //ctx.pipeline().addFirst(new AuthRequestMessageEncoder());
                 ctx.writeAndFlush(CryptUtils.encrypt(crypt, AuthMessagePacker.pack(authMessage)));
-                //ctx.pipeline().remove(AuthRequestMessageEncoder.class);
             }else{
+                ctx.pipeline().remove(DelimiterOutboundHandler.class);
+                ctx.pipeline().remove(DelimiterBasedFrameDecoder.class);
                 addSuccessRelayHandler(inCtx, ctx, false);
             }
         }

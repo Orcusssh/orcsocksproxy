@@ -45,9 +45,8 @@ public class ProxyServerBootServer implements ApplicationRunner {
                         @Override
                         protected void initChannel(SocketChannel ch) throws Exception {
                             ChannelPipeline cp = ch.pipeline();
-                            //ch.pipeline().addLast(new AuthRequestMessageDecoder());
                             cp.addLast(new DelimiterOutboundHandler());
-                            //cp.addLast(new DelimiterBasedFrameDecoder(102400, DelimiterMessage.getDelimiterBuf()));
+                            cp.addLast(new DelimiterBasedFrameDecoder(1024 * 1000 * 50, DelimiterMessage.getDelimiterBuf()));
                             cp.addLast(new InitialServerHandler(commonConfiguration, serverAuthConfiguration));
                         }
                     });

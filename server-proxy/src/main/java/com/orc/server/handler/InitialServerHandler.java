@@ -46,10 +46,7 @@ public class InitialServerHandler extends SimpleChannelInboundHandler<ByteBuf> {
 
         String host = authRequestMessage.getHost();
         int port = authRequestMessage.getPort();
-        //ctx.pipeline().addLast(new AuthResponseMessageEncoder());
         ctx.channel().writeAndFlush(CryptUtils.encrypt(crypt, AuthMessagePacker.pack(authResponseMessage)));
-        //ctx.pipeline().remove(AuthResponseMessageEncoder.class);
-       //ctx.pipeline().remove(AuthRequestMessageDecoder.class);
         if(authResponseMessage.isAuthSuccess()) {
             ctx.channel().pipeline().remove(this);
             ctx.channel().pipeline().addLast(new ProxyHandler(host, port, crypt, ctx, msg));
