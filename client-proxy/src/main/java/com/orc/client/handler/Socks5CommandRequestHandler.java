@@ -76,8 +76,10 @@ public class Socks5CommandRequestHandler extends SimpleChannelInboundHandler<Def
          * 调用者可以通过返回的ChannelFuture来获取操作执行的状态，注册监听函数来执行完成后的操作。
          */
         setProxy(msg);
-        logger.info("host = " + msg.dstAddr() + ",port = " + msg.dstPort() + ",isProxy = " + isProxy);
-        ChannelFuture f = b.connect(getIpAddr(msg), getPort(msg));
+        logger.info("real host = " + msg.dstAddr() + ",port = " + msg.dstPort() + ",isProxy = " + isProxy);
+        String host = getIpAddr(msg);
+        int port = getPort(msg);
+        ChannelFuture f = b.connect(host, port);
         /**
          * ChannelFutureListener
          * 监听ChannelFuture的状态
