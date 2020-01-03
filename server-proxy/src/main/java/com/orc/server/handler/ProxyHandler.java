@@ -33,6 +33,8 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
 
     private CountDownLatch waitLatch = new CountDownLatch(1);
 
+    private static final EventLoopGroup eventLoopGroup = new NioEventLoopGroup(2);
+
     public ProxyHandler(String host, int port, ICrypt crypt, final ChannelHandlerContext clientChannelContext, Object msg){
         this.host = host;
         this.port = port;
@@ -41,7 +43,7 @@ public class ProxyHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void init(final ChannelHandlerContext clientChannelContext, Object msg){
-        b.group(new NioEventLoopGroup()).channel(NioSocketChannel.class)
+        b.group(eventLoopGroup).channel(NioSocketChannel.class)
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10*1000)
                 .option(ChannelOption.SO_KEEPALIVE, true)
                 .handler(new ChannelInitializer<SocketChannel>() {
